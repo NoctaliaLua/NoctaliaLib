@@ -93,7 +93,7 @@ local Tooltips = {}
 local Dialogues = {}
 
 -- https://github.com/deividcomsono/Obsidian/blob/main/Library.lua#L30
-local BaseURL = "https://raw.githubusercontent.com/mstudio45/NoctaliaLib/refs/heads/main/"
+local BaseURL = "https://raw.githubusercontent.com/NoctaliaLua/NoctaliaLib/refs/heads/main/"
 local CustomImageManager = {}
 local CustomImageManagerAssets = {
     Cursor = {
@@ -253,7 +253,8 @@ local Library = {
 
     -- glass style --
     GlassTransparency = 0.2;
-    ElementTransparency = 0.4;
+    ElementTransparency = 0.2;
+    GroupboxTransparency = 0.4;
     BlurEnabled = true;
     BlurSize = 30;
     WindowClosedScale = 0.5;
@@ -412,7 +413,7 @@ type IconModule = {
 
 local FetchIcons, Icons = pcall(function()
     return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/mstudio45/lucide-roblox-direct/refs/heads/main/source.lua")
+        game:HttpGet("https://raw.githubusercontent.com/NoctaliaLua/lucide-roblox-direct/refs/heads/main/source.lua")
     ) :: () -> IconModule)()
 end)
 
@@ -690,8 +691,41 @@ function Library:FlashButton(Inner)
     end)
 end
 
-function Library:PreloadFont()
-    pcall(function()
+-- turns every glass panel solid (or back) and keeps the fade cache in sync
+function Library:SetTransparency(Enabled)
+    Library.TransparencyEnabled = Enabled
+
+    Library.GlassTransparency = Enabled and 0.2 or 0
+    Library.ElementTransparency = Enabled and 0.2 or 0
+    Library.GroupboxTransparency = Enabled and 0.4 or 0
+
+    for _, Inst in next, ScreenGui:GetDescendants() do
+        if not Inst:IsA("GuiObject") then
+            continue
+        end
+
+        local Current = Inst.BackgroundTransparency
+        local Saved = Inst:GetAttribute("GlassOriginal")
+
+        if not Enabled and not Saved and (math.abs(Current - 0.2) < 0.01 or math.abs(Current - 0.4) < 0.01) then
+            Inst:SetAttribute("GlassOriginal", Current)
+            Inst.BackgroundTransparency = 0
+
+            if FadeCache[Inst] then
+                FadeCache[Inst].BackgroundTransparency = 0
+            end
+        elseif Enabled and Saved then
+            Inst:SetAttribute("GlassOriginal", nil)
+            Inst.BackgroundTransparency = Saved
+
+            if FadeCache[Inst] then
+                FadeCache[Inst].BackgroundTransparency = Saved
+            end
+        end
+    end
+end
+
+function Library:PreloadFont()    pcall(function()
         local Probe = Instance.new("TextLabel")
         Probe.Font = Library.Font
         Probe.Text = "AaBbCc 0123456789 []<>"
@@ -2318,15 +2352,6 @@ do
             Parent = PickerFrameOuter;
         })
 
-        local Highlight = Library:Create("Frame", {
-            BackgroundColor3 = Library.AccentColor;
-            BackgroundTransparency = Library.GlassTransparency;
-            Position = UDim2.new(0, 5, 0, 0);
-            Size = UDim2.new(1, -10, 0, 2);
-            ZIndex = 17;
-            Parent = PickerFrameInner;
-        })
-
         local SatVibMapOuter = Library:Create("Frame", {
             Position = UDim2.new(0, 4, 0, 25);
             Size = UDim2.new(0, 200, 0, 200);
@@ -2623,7 +2648,6 @@ do
         ColorPicker.ContextMenu = ContextMenu
 
         Library:AddToRegistry(PickerFrameInner, { BackgroundColor3 = "BackgroundColor"; BorderColor3 = "OutlineColor"; })
-        Library:AddToRegistry(Highlight, { BackgroundColor3 = "AccentColor"; })
         Library:AddToRegistry(SatVibMapInner, { BackgroundColor3 = "BackgroundColor"; BorderColor3 = "OutlineColor"; })
 
         Library:AddToRegistry(HueBoxInner, { BackgroundColor3 = "MainColor"; BorderColor3 = "OutlineColor"; })
@@ -3069,8 +3093,8 @@ do
         })
 
         function Dropdown:UpdateColors()
-            ItemList.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
-            DropdownArrow.ImageColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+            ItemList.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Library.FontColor
+            DropdownArrow.ImageColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Library.FontColor
         end
 
         function Dropdown:GenerateDisplayText(SelectedValue)
@@ -3906,7 +3930,7 @@ do
             SubButton.Outer.Parent = self.Outer
 
             function SubButton:UpdateColors()
-                SubButton.Label.TextColor3 = SubButton.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+                SubButton.Label.TextColor3 = SubButton.Disabled and Library.DisabledAccentColor or Library.FontColor
             end
 
             function SubButton:AddToolTip(tooltip, disabledTooltip)
@@ -3952,7 +3976,7 @@ do
         end
 
         function Button:UpdateColors()
-            Button.Label.TextColor3 = Button.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+            Button.Label.TextColor3 = Button.Disabled and Library.DisabledAccentColor or Library.FontColor
         end
 
         function Button:AddToolTip(tooltip, disabledTooltip)
@@ -4373,7 +4397,7 @@ do
                 return
             end
 
-            ToggleLabel.TextColor3 = Toggle.Risky and Library.RiskColor or Color3.new(1, 1, 1)
+            ToggleLabel.TextColor3 = Toggle.Risky and Library.RiskColor or Library.FontColor
 
             SetToggleColor(Toggle.Value and Library.AccentColor or Library.MainColor)
             ToggleInner.BorderColor3 = Toggle.Value and Library.AccentColorDark or Library.OutlineColor
@@ -4381,7 +4405,7 @@ do
             Library.RegistryMap[ToggleInner].Properties.BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
             Library.RegistryMap[ToggleInner].Properties.BorderColor3 = Toggle.Value and "AccentColorDark" or "OutlineColor"
 
-            Library.RegistryMap[ToggleLabel].Properties.TextColor3 = Toggle.Risky and "RiskColor" or nil
+            Library.RegistryMap[ToggleLabel].Properties.TextColor3 = Toggle.Risky and "RiskColor" or "FontColor"
         end
 
         function Toggle:OnChanged(Func)
@@ -4602,9 +4626,9 @@ do
 
         function Slider:UpdateColors()
             if SliderText then
-                SliderText.TextColor3 = Slider.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+                SliderText.TextColor3 = Slider.Disabled and Library.DisabledAccentColor or Library.FontColor
             end
-            DisplayLabel.TextColor3 = Slider.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+            DisplayLabel.TextColor3 = Slider.Disabled and Library.DisabledAccentColor or Library.FontColor
 
             Fill.BackgroundColor3 = Slider.Disabled and Library.DisabledAccentColor or Library.AccentColor
 
@@ -5054,11 +5078,11 @@ do
 
         function Dropdown:UpdateColors()
             if DropdownLabel then
-                DropdownLabel.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+                DropdownLabel.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Library.FontColor
             end
 
-            ItemList.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
-            DropdownArrow.ImageColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Color3.new(1, 1, 1)
+            ItemList.TextColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Library.FontColor
+            DropdownArrow.ImageColor3 = Dropdown.Disabled and Library.DisabledAccentColor or Library.FontColor
         end
 
         function Dropdown:Display()
@@ -6250,7 +6274,7 @@ do
         local BoxOuter = Library:Create("Frame", {
             ClipsDescendants = true;
             BackgroundColor3 = Library.BackgroundColor;
-            BackgroundTransparency = Library.ElementTransparency;
+            BackgroundTransparency = Library.GroupboxTransparency;
             Corner = 10;
             Size = UDim2.new(1, 0, 0, 507 + 2);
             ZIndex = 2;
@@ -6270,18 +6294,6 @@ do
             Parent = BoxOuter;
         })
 
-        local Highlight = Library:Create("Frame", {
-            BackgroundColor3 = Library.AccentColor;
-            BackgroundTransparency = Library.GlassTransparency;
-            Position = UDim2.new(0, 10, 0, 0);
-            Size = UDim2.new(1, -20, 0, 2);
-            ZIndex = 5;
-            Parent = BoxOuter;
-        })
-
-        Library:AddToRegistry(Highlight, {
-            BackgroundColor3 = "AccentColor";
-        })
 
         local Container = Library:Create("Frame", {
             BackgroundTransparency = 1;
@@ -6381,8 +6393,8 @@ do
     local ColorFrame = Library:Create("Frame", {
         BackgroundColor3 = Library.AccentColor;
         BackgroundTransparency = Library.GlassTransparency;
-        Position = UDim2.new(0, 5, 0, 0);
-        Size = UDim2.new(1, -10, 0, 2);
+        Position = UDim2.new(0, 0, 0, 0);
+        Size = UDim2.new(0, 3, 1, 0);
         ZIndex = 102;
         Parent = KeybindInner;
     })
@@ -6393,8 +6405,8 @@ do
 
     local _KeybindLabel = Library:CreateLabel({
         Size = UDim2.new(1, 0, 0, 20);
-        Position = UDim2.fromOffset(5, 2),
-        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(0, 2),
+        TextXAlignment = Enum.TextXAlignment.Center,
 
         Text = "Keybinds";
         ZIndex = 104;
@@ -6417,7 +6429,7 @@ do
     })
 
     Library:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 5),
+        PaddingLeft = UDim.new(0, 9),
         Parent = KeybindContainer,
     })
 
@@ -6451,18 +6463,6 @@ do
         BackgroundColor3 = "MainColor";
     })
 
-    local WatermarkAccent = Library:Create("Frame", {
-        BackgroundColor3 = Library.AccentColor;
-        BackgroundTransparency = Library.GlassTransparency;
-        Position = UDim2.new(0, 5, 0, 0);
-        Size = UDim2.new(1, -10, 0, 2);
-        ZIndex = 202;
-        Parent = WatermarkInner;
-    })
-
-    Library:AddToRegistry(WatermarkAccent, {
-        BackgroundColor3 = "AccentColor";
-    })
 
     local InnerFrame = Library:Create("Frame", {
         BackgroundTransparency = 1;
@@ -6781,7 +6781,7 @@ function Library:CreateWindow(...)
     Library.ShowCustomCursor = WindowInfo.ShowCustomCursor
 
     if WindowInfo.TabPadding <= 0 then WindowInfo.TabPadding = 1 end
-    if WindowInfo.Center then WindowInfo.Position = UDim2.new(0.5, -WindowInfo.Size.X.Offset / 2, 0.5, -WindowInfo.Size.Y.Offset / 2) end
+    if WindowInfo.Center then WindowInfo.Position = UDim2.new(0.65, -WindowInfo.Size.X.Offset / 2, 0.5, -WindowInfo.Size.Y.Offset / 2) end
 
     local Window = {
         Tabs = {};
@@ -6819,7 +6819,7 @@ function Library:CreateWindow(...)
     if WindowInfo.Resizable then Library:MakeResizable(Outer, Library.MinSize, Inner) end
 
     local WindowScale = Library:Create("UIScale", {
-        Scale = Library.WindowClosedScale;
+        Scale = 1;
         Parent = Inner;
     })
 
@@ -6936,24 +6936,24 @@ function Library:CreateWindow(...)
         BackgroundColor3 = "MainColor";
     })
 
-    -- a single accent bar that slides over whichever tab is selected
+    -- a single accent dot that sits on the top edge of the selected tab and stretches between tabs
     local TabIndicatorClip = Library:Create("Frame", {
         BackgroundTransparency = 1;
         ClipsDescendants = true;
         ZIndex = 3;
         Parent = MainSectionInner;
     })
-    TabIndicatorClip.Position = TabArea.Position
-    TabIndicatorClip.Size = TabArea.Size
+    TabIndicatorClip.Position = TabArea.Position - UDim2.fromOffset(0, 6)
+    TabIndicatorClip.Size = TabArea.Size + UDim2.fromOffset(0, 6)
 
     local TabIndicator = Library:Create("Frame", {
         BackgroundColor3 = Library.AccentColor;
         BackgroundTransparency = Library.GlassTransparency;
+        Corner = 3;
         ZIndex = 4;
         Parent = TabIndicatorClip;
     })
-    TabIndicator.Size = UDim2.fromOffset(0, 2)
-
+    TabIndicator.Size = UDim2.fromOffset(0, 6)
     Library:AddToRegistry(TabIndicator, {
         BackgroundColor3 = "AccentColor";
     })
@@ -6987,8 +6987,10 @@ function Library:CreateWindow(...)
         BackgroundImage.Visible = true
     end
 
-    local IndicatorTween = nil
+    local IndicatorTweens = {}
+    local IndicatorToken = 0
     local IndicatorGoal = nil
+    local DotSize = 6
 
     function Window:MoveTabIndicator(Button, Instant)
         if not Button or Button.AbsoluteSize.X <= 0 then
@@ -6997,11 +6999,10 @@ function Library:CreateWindow(...)
 
         local Scale = WindowScale.Scale
 
-        local X = (Button.AbsolutePosition.X - TabIndicatorClip.AbsolutePosition.X) / Scale
-        local Y = (Button.AbsolutePosition.Y - TabIndicatorClip.AbsolutePosition.Y) / Scale
-        local Width = math.max(Button.AbsoluteSize.X / Scale - 10, 0)
+        local CenterX = (Button.AbsolutePosition.X - TabIndicatorClip.AbsolutePosition.X + Button.AbsoluteSize.X / 2) / Scale
+        local Y = (Button.AbsolutePosition.Y - TabIndicatorClip.AbsolutePosition.Y) / Scale - DotSize / 2
 
-        local Goal = Vector3.new(X + 5, Y, Width)
+        local Goal = Vector2.new(CenterX, Y)
         if IndicatorGoal and (IndicatorGoal - Goal).Magnitude < 0.6 then
             return
         end
@@ -7009,26 +7010,48 @@ function Library:CreateWindow(...)
         local FirstMove = IndicatorGoal == nil
         IndicatorGoal = Goal
 
-        if IndicatorTween then
-            IndicatorTween:Cancel()
-            IndicatorTween = nil
-        end
+        IndicatorToken = IndicatorToken + 1
+        local Token = IndicatorToken
 
-        local Properties = {
-            Position = UDim2.fromOffset(X + 5, Y);
-            Size = UDim2.fromOffset(Width, 2);
-        }
+        for _, IndicatorTween in next, IndicatorTweens do
+            IndicatorTween:Cancel()
+        end
+        IndicatorTweens = {}
+
+        local ToLeft = CenterX - DotSize / 2
 
         if Instant or FirstMove then
-            TabIndicator.Position = Properties.Position
-            TabIndicator.Size = Properties.Size
+            TabIndicator.Position = UDim2.fromOffset(ToLeft, Y)
+            TabIndicator.Size = UDim2.fromOffset(DotSize, DotSize)
             return
         end
 
-        IndicatorTween = TweenService:Create(TabIndicator, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), Properties)
-        IndicatorTween:Play()
-    end
+        -- stretch out to the new tab, then pull the tail in behind it
+        local FromLeft = TabIndicator.Position.X.Offset
+        local FromRight = FromLeft + TabIndicator.Size.X.Offset
+        local Left = math.min(FromLeft, ToLeft)
+        local Right = math.max(FromRight, ToLeft + DotSize)
 
+        local Stretch = TweenService:Create(TabIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.fromOffset(Left, Y);
+            Size = UDim2.fromOffset(Right - Left, DotSize);
+        })
+        table.insert(IndicatorTweens, Stretch)
+        Stretch:Play()
+
+        task.delay(0.16, function()
+            if Token ~= IndicatorToken then
+                return
+            end
+
+            local Settle = TweenService:Create(TabIndicator, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Position = UDim2.fromOffset(ToLeft, Y);
+                Size = UDim2.fromOffset(DotSize, DotSize);
+            })
+            table.insert(IndicatorTweens, Settle)
+            Settle:Play()
+        end)
+    end
     function Window:AddDialog(Idx, Info)
         assert(Info.Title, "AddDialog: Missing `Title` string.")
         assert(Info.Description, "AddDialog: Missing `Description` string.")
@@ -7914,7 +7937,7 @@ end
             local BoxOuter = Library:Create("Frame", {
                 ClipsDescendants = true;
                 BackgroundColor3 = Library.BackgroundColor;
-                BackgroundTransparency = Library.ElementTransparency;
+                BackgroundTransparency = Library.GroupboxTransparency;
                 Corner = 10;
                 Size = UDim2.new(1, 0, 0, 507 + 2);
                 ZIndex = 2;
@@ -7934,18 +7957,6 @@ end
                 Parent = BoxOuter;
             })
 
-            local Highlight = Library:Create("Frame", {
-                BackgroundColor3 = Library.AccentColor;
-                BackgroundTransparency = Library.GlassTransparency;
-                Position = UDim2.new(0, 10, 0, 0);
-                Size = UDim2.new(1, -20, 0, 2);
-                ZIndex = 5;
-                Parent = BoxOuter;
-            })
-
-            Library:AddToRegistry(Highlight, {
-                BackgroundColor3 = "AccentColor";
-            })
 
             -- local GroupboxLabel =
             Library:CreateLabel({
@@ -8011,7 +8022,7 @@ end
             local BoxOuter = Library:Create("Frame", {
                 ClipsDescendants = true;
                 BackgroundColor3 = Library.BackgroundColor;
-                BackgroundTransparency = Library.ElementTransparency;
+                BackgroundTransparency = Library.GroupboxTransparency;
                 Corner = 10;
                 Size = UDim2.new(1, 0, 0, 0);
                 ZIndex = 2;
@@ -8031,18 +8042,6 @@ end
                 Parent = BoxOuter;
             })
 
-            local Highlight = Library:Create("Frame", {
-                BackgroundColor3 = Library.AccentColor;
-                BackgroundTransparency = Library.GlassTransparency;
-                Position = UDim2.new(0, 10, 0, 0);
-                Size = UDim2.new(1, -20, 0, 2);
-                ZIndex = 10;
-                Parent = BoxOuter;
-            })
-
-            Library:AddToRegistry(Highlight, {
-                BackgroundColor3 = "AccentColor";
-            })
 
             local TabboxButtons = Library:Create("Frame", {
                 BackgroundTransparency = 1;
@@ -8315,6 +8314,10 @@ end
         end
         task.wait(FadeTime)
         Outer.Visible = Toggled
+
+        if not Toggled then
+            WindowScale.Scale = 1
+        end
 
         if Library.Blur and not Toggled then
             Library.Blur.Enabled = false
