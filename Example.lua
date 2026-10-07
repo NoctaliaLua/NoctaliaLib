@@ -543,7 +543,7 @@ local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(
 	if IsOn("WatermarkUser") then table.insert(Parts, Players.LocalPlayer.Name) end
 	if IsOn("WatermarkFps") then table.insert(Parts, ("%d fps"):format(math.floor(FPS))) end
 	if IsOn("WatermarkPing") and CanDoPing then table.insert(Parts, ("%d ms"):format(GetPing())) end
-	if IsOn("WatermarkTime") then table.insert(Parts, os.date("%H:%M:%S")) end
+	if IsOn("WatermarkTime") then table.insert(Parts, os.date("%I:%M %p"):lower()) end
 	if IsOn("WatermarkUptime") then table.insert(Parts, FormatUptime(tick() - StartTime)) end
 
 	Library:SetWatermarkVisibility(IsOn("WatermarkEnabled") and #Parts > 0)
